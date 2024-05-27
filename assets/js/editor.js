@@ -11,6 +11,9 @@ import {
   getVersion,
 } from "prosemirror-collab";
 
+import { channel } from "./editor_socket.js";
+import { Step } from "prosemirror-transform";
+
 // Mix the nodes from prosemirror-schema-list into the basic schema to
 // create a schema with list support.
 export const mySchema = new Schema({
@@ -20,69 +23,46 @@ export const mySchema = new Schema({
 
 /**
  *
- * @param {Authority} authority
  * @param {HTMLElement} place
  * @returns {EditorView}
  */
-export function startEditor(authority, place) {
+export function startEditor(place, clientID) {
   const view = new EditorView(place, {
     state: EditorState.create({
-      doc: authority.doc,
-      plugins: [
-        ...exampleSetup({ schema: mySchema }),
-        collab({ version: authority.steps.length }),
-      ],
+      schema: mySchema,
+      plugins: [...exampleSetup({ schema: mySchema }), collab({ clientID })],
     }),
     dispatchTransaction(transaction) {
       let newState = view.state.apply(transaction);
       view.updateState(newState);
       let sendable = sendableSteps(newState);
-      if (sendable)
-        authority.receiveSteps(
-          sendable.version,
-          sendable.steps,
-          sendable.clientID
-        );
+      if (sendable) {
+        channel.push("transaction", {
+          version: sendable.version,
+          steps: sendable.steps,
+          clientID: sendable.clientID,
+        });
+      }
     },
   });
 
-  authority.onNewSteps.push(function () {
-    let newData = authority.stepsSince(getVersion(view.state));
+  // authority.onNewSteps.push(function () {
+  //   let newData = authority.stepsSince(getVersion(view.state));
+  //   view.dispatch(
+  //     receiveTransaction(view.state, newData.steps, newData.clientIDs)
+  //   );
+  // });
+
+  channel.on("transaction", (payload) => {
+    console.log({ payload, version: getVersion(view.state) });
     view.dispatch(
-      receiveTransaction(view.state, newData.steps, newData.clientIDs)
+      receiveTransaction(
+        view.state,
+        payload.steps.map((s) => Step.fromJSON(mySchema, s)),
+        [payload.clientID]
+      )
     );
   });
 
-  return;
-}
-
-export class Authority {
-  constructor(doc) {
-    this.doc = doc;
-    this.steps = [];
-    this.stepClientIDs = [];
-    this.onNewSteps = [];
-  }
-
-  receiveSteps(version, steps, clientID) {
-    if (version != this.steps.length) return;
-
-    // Apply and accumulate new steps
-    steps.forEach((step) => {
-      this.doc = step.apply(this.doc).doc;
-      this.steps.push(step);
-      this.stepClientIDs.push(clientID);
-    });
-    // Signal listeners
-    this.onNewSteps.forEach(function (f) {
-      f();
-    });
-  }
-
-  stepsSince(version) {
-    return {
-      steps: this.steps.slice(version),
-      clientIDs: this.stepClientIDs.slice(version),
-    };
-  }
+  return view;
 }
