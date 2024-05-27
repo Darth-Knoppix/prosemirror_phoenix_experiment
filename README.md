@@ -8,10 +8,11 @@ An experiment with [ProseMirror](https://prosemirror.net/) to get it working wit
 
 - Can communicate over Pheonix channels and update the client's local state, keeping editors in sync
 - Receives a client ID from the server
+- Store the document on the socket so if a client joins, it will have the document to start from (partially works, stored in memory via StepRecorder agent)
 
 ### TODO
 
-- [ ] Store the document on the socket so if a client joins, it will have the document to start from
+- [ ] YJS
 
 ## How to
 

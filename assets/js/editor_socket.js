@@ -62,9 +62,10 @@ socket.connect();
 export const channel = socket.channel("workspace:public", {});
 channel
   .join()
-  .receive("ok", ({ clientId }) => {
+  .receive("ok", ({ clientId, steps }) => {
+    console.log(steps);
     console.log("Joined successfully");
-    startEditor(document.querySelector("#editor"), clientId);
+    startEditor(document.querySelector("#editor"), clientId, steps);
   })
   .receive("error", (resp) => {
     console.log("Unable to join", resp);

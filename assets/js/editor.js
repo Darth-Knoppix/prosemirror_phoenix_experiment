@@ -19,9 +19,11 @@ export const mySchema = new Schema({
 /**
  *
  * @param {HTMLElement} place
+ * @param {string} clientID
+ * @param {unknown[]} previousSteps
  * @returns {EditorView}
  */
-export function startEditor(place, clientID) {
+export function startEditor(place, clientID, previousSteps) {
   const view = new EditorView(place, {
     state: EditorState.create({
       schema: mySchema,
@@ -42,6 +44,17 @@ export function startEditor(place, clientID) {
       }
     },
   });
+
+  // Apply steps that have been stored on server if present
+  if (previousSteps?.length > 0) {
+    view.dispatch(
+      receiveTransaction(
+        view.state,
+        previousSteps.map((s) => Step.fromJSON(mySchema, s)),
+        [clientID]
+      )
+    );
+  }
 
   // When we receive data from websocket, apply new transactions to editor
   channel.on("transaction", (payload) => {
