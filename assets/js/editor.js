@@ -4,12 +4,7 @@ import { Schema, DOMParser } from "prosemirror-model";
 import { schema } from "prosemirror-schema-basic";
 import { addListNodes } from "prosemirror-schema-list";
 import { exampleSetup } from "prosemirror-example-setup";
-import {
-  collab,
-  receiveTransaction,
-  sendableSteps,
-  getVersion,
-} from "prosemirror-collab";
+import { collab, receiveTransaction, sendableSteps } from "prosemirror-collab";
 
 import { channel } from "./editor_socket.js";
 import { Step } from "prosemirror-transform";
@@ -35,8 +30,10 @@ export function startEditor(place, clientID) {
     dispatchTransaction(transaction) {
       let newState = view.state.apply(transaction);
       view.updateState(newState);
-      let sendable = sendableSteps(newState);
+
+      const sendable = sendableSteps(newState);
       if (sendable) {
+        // Push data to websocket
         channel.push("transaction", {
           version: sendable.version,
           steps: sendable.steps,
@@ -46,15 +43,8 @@ export function startEditor(place, clientID) {
     },
   });
 
-  // authority.onNewSteps.push(function () {
-  //   let newData = authority.stepsSince(getVersion(view.state));
-  //   view.dispatch(
-  //     receiveTransaction(view.state, newData.steps, newData.clientIDs)
-  //   );
-  // });
-
+  // When we receive data from websocket, apply new transactions to editor
   channel.on("transaction", (payload) => {
-    console.log({ payload, version: getVersion(view.state) });
     view.dispatch(
       receiveTransaction(
         view.state,
