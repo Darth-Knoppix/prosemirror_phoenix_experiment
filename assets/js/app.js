@@ -21,7 +21,8 @@ import "phoenix_html";
 import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import topbar from "../vendor/topbar";
-import { startEditor } from "./editor";
+import { startEditor, Authority, mySchema } from "./editor";
+import { DOMParser } from "prosemirror-model";
 
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
@@ -44,4 +45,9 @@ liveSocket.connect();
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket;
 
-startEditor();
+const authority = new Authority(
+  DOMParser.fromSchema(mySchema).parse(document.querySelector("#content"))
+);
+
+startEditor(authority, document.querySelector("#editor"));
+startEditor(authority, document.querySelector("#editor2"));
