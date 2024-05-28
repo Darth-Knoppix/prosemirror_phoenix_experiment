@@ -12,7 +12,7 @@ defmodule ProsemirrorPhoenixExperiment.Application do
       {DNSCluster,
        query: Application.get_env(:prosemirror_phoenix_experiment, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: ProsemirrorPhoenixExperiment.PubSub},
-      StepRecorder,
+      DocRecorder,
       # Start a worker by calling: ProsemirrorPhoenixExperiment.Worker.start_link(arg)
       # {ProsemirrorPhoenixExperiment.Worker, arg},
       # Start to serve requests, typically the last entry

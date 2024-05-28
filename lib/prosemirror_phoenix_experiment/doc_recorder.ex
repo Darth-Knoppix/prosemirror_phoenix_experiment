@@ -1,4 +1,4 @@
-defmodule StepRecorder do
+defmodule DocRecorder do
   use Agent
 
   def start_link(initial_value) do
@@ -9,7 +9,7 @@ defmodule StepRecorder do
     Agent.get(__MODULE__, & &1)
   end
 
-  def append(steps) do
-    Agent.update(__MODULE__, &(&1 ++ steps))
+  def set(newDoc) do
+    Agent.update(__MODULE__, fn _s -> newDoc end)
   end
 end

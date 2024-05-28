@@ -8,14 +8,20 @@ defmodule ProsemirrorPhoenixExperimentWeb.WorkspaceChannel do
 
     socket = assign(socket, :clientId, clientId)
 
-    {:ok, %{clientId: clientId, steps: StepRecorder.value()}, socket}
+    {:ok, %{clientId: clientId, doc: DocRecorder.value()}, socket}
   end
 
   @impl true
   def handle_in("transaction", payload, socket) do
-    StepRecorder.append(payload["steps"])
-
     broadcast(socket, "transaction", payload)
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("new-doc", payload, socket) do
+    # This doc could be stored and retrieved to keep in sync
+    DocRecorder.set(payload)
+    broadcast(socket, "new-doc", payload)
     {:noreply, socket}
   end
 end

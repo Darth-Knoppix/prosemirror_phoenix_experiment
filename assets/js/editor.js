@@ -1,13 +1,13 @@
 import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
-import { Schema, DOMParser } from "prosemirror-model";
+import { Schema } from "prosemirror-model";
 import { schema } from "prosemirror-schema-basic";
 import { addListNodes } from "prosemirror-schema-list";
 import { exampleSetup } from "prosemirror-example-setup";
-import { collab, receiveTransaction, sendableSteps } from "prosemirror-collab";
-
-import { channel } from "./editor_socket.js";
-import { Step } from "prosemirror-transform";
+import { keymap } from "prosemirror-keymap";
+import * as Y from "yjs";
+import { ySyncPlugin, yUndoPlugin, undo, redo } from "y-prosemirror";
+import { channel } from "./editor_socket";
 
 // Mix the nodes from prosemirror-schema-list into the basic schema to
 // create a schema with list support.
@@ -20,51 +20,44 @@ export const mySchema = new Schema({
  *
  * @param {HTMLElement} place
  * @param {string} clientID
- * @param {unknown[]} previousSteps
+ * @param {import('yjs').Doc} ydoc
  * @returns {EditorView}
  */
-export function startEditor(place, clientID, previousSteps) {
+export function startEditor(place, clientID, ydoc) {
+  ydoc.on("update", (update) => {
+    channel.push("transaction", { data: [btoa(update)] });
+  });
+
+  channel.on("transaction", ({ data }) => {
+    data
+      .map((d) => new Uint8Array(atob(d).split(",").map(Number)))
+      .forEach((update) => {
+        Y.applyUpdate(ydoc, update);
+      });
+  });
+
+  // channel.on("new-doc", console.log);
+
+  // channel.on("request-last-doc", () => {
+  //   channel.push("new-doc", { clientID, data: Y.encodeStateAsUpdate(ydoc) });
+  // });
+
+  const yXmlFragment = ydoc.getXmlFragment("prosemirror");
+
   const view = new EditorView(place, {
     state: EditorState.create({
       schema: mySchema,
-      plugins: [...exampleSetup({ schema: mySchema }), collab({ clientID })],
+      plugins: [
+        ySyncPlugin(yXmlFragment),
+        yUndoPlugin(),
+        keymap({
+          "Mod-z": undo,
+          "Mod-y": redo,
+          "Mod-Shift-z": redo,
+        }),
+        ...exampleSetup({ schema: mySchema }),
+      ],
     }),
-    dispatchTransaction(transaction) {
-      let newState = view.state.apply(transaction);
-      view.updateState(newState);
-
-      const sendable = sendableSteps(newState);
-      if (sendable) {
-        // Push data to websocket
-        channel.push("transaction", {
-          version: sendable.version,
-          steps: sendable.steps,
-          clientID: sendable.clientID,
-        });
-      }
-    },
-  });
-
-  // Apply steps that have been stored on server if present
-  if (previousSteps?.length > 0) {
-    view.dispatch(
-      receiveTransaction(
-        view.state,
-        previousSteps.map((s) => Step.fromJSON(mySchema, s)),
-        [clientID]
-      )
-    );
-  }
-
-  // When we receive data from websocket, apply new transactions to editor
-  channel.on("transaction", (payload) => {
-    view.dispatch(
-      receiveTransaction(
-        view.state,
-        payload.steps.map((s) => Step.fromJSON(mySchema, s)),
-        [payload.clientID]
-      )
-    );
   });
 
   return view;

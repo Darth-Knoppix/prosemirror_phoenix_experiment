@@ -4,6 +4,7 @@
 // Bring in Phoenix channels client library:
 import { Socket } from "phoenix";
 import { startEditor } from "./editor";
+import * as Y from "yjs";
 
 // And connect to the path in "lib/prosemirror_phoenix_experiment_web/endpoint.ex". We pass the
 // token for authentication. Read below how it should be used.
@@ -62,10 +63,10 @@ socket.connect();
 export const channel = socket.channel("workspace:public", {});
 channel
   .join()
-  .receive("ok", ({ clientId, steps }) => {
-    console.log(steps);
+  .receive("ok", ({ clientId, updates }) => {
     console.log("Joined successfully");
-    startEditor(document.querySelector("#editor"), clientId, steps);
+
+    startEditor(document.querySelector("#editor"), clientId, new Y.Doc());
   })
   .receive("error", (resp) => {
     console.log("Unable to join", resp);
